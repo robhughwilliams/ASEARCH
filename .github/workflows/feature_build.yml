@@ -1,0 +1,13 @@
+name: Feature build
+on:
+  schedule:
+    - cron: '30 0 * * *'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12', cache: 'pip' }
+      - run: pip install duckdb pandas
+      - run: python src/feature_build.py
