@@ -8,12 +8,12 @@ def main(days, out):
     """
     Fetch up to 600 *active* UK companies that are at least five years old.
 
-    We hit the Companies‑House *advanced search* endpoint with:
+    We hit the Companies-House *advanced search* endpoint with:
         - incorporated_to = today − 5 years
         - company_status  = active
         - size            = 600      (max rows we’ll accept in one call)
 
-    Results are stored as <out>/companies_active_5y_<yyyy‑mm‑dd>.parquet
+    Results are stored as <out>/companies_active_5y_<yyyy-mm-dd>.parquet
     where the date is the 'incorporated_to' cutoff.
     """
     today          = datetime.date.today()

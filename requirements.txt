@@ -9,6 +9,7 @@ idna==3.10
 notion-client==2.3.0
 numpy==2.2.6
 pandas==2.2.3
+row>=16.0.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 pytz==2025.2
