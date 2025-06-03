@@ -1,18 +1,30 @@
 name: Nightly CH ingest
 on:
   schedule:
-    - cron:  '0 0 * * *'   # 01:00 London (00:00 UTC)
-  workflow_dispatch: {}
+    - cron:  '0 0 * * *'     # 01:00 London (00:00 UTC)
+  workflow_dispatch: {}       # manual trigger
 jobs:
   ingest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
-        with:
+        with: 
           python-version: '3.12'
           cache: 'pip'
+
       - run: pip install -r requirements.txt
-      - env:
+
+      - name: Run ingest
+        env:
           CH_API_KEY: ${{ secrets.CH_API_KEY }}
-        run: python src/ch_ingest.py --days 1 --out data/raw
+        run: python src/ch_ingest.py --out data/raw
+
+      # optional: upload raw file for inspection
+      - name: Upload raw parquet
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw_companies
+          path: data/raw/*.parquet
+          retention-days: 7

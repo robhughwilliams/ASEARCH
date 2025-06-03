@@ -1,17 +1,32 @@
 name: Score & push to Notion
 on:
-  schedule:
-    - cron: '0 1 * * *'
-  workflow_dispatch:  # Add this to enable manual triggers
+  workflow_dispatch: {}         # manual trigger
+  workflow_run:                 # auto-trigger after feature build
+    workflows: ["Feature build"]
+    types: [completed]
 jobs:
-  score:
+  score_and_push:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12', cache: 'pip' }
-      - run: pip install -r requirements.txt
-      - env:
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - run: pip install pandas pyarrow notion-client
+
+      - name: Download feature artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: features
+          path: data/features
+
+      - name: Push top companies to Notion
+        env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
         run: python src/score_and_push.py
