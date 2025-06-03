@@ -1,4 +1,4 @@
-import os
+"""import os
 import glob
 import pandas as pd
 from datetime import datetime
@@ -123,3 +123,61 @@ final_df.rename(columns={
 os.makedirs('data/features', exist_ok=True)
 final_df.to_parquet('data/features/features.parquet', index=False)
 print(f"Features file created: data/features/features.parquet (rows: {len(final_df)})")
+
+
+Build feature set from Companies House raw parquet output.
+"""
+
+from __future__ import annotations
+from datetime import date
+from pathlib import Path
+import pandas as pd
+
+RAW_DATA_DIR = Path("data/raw")
+FEATURE_DIR = Path("data/features")
+FEATURE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def load_latest_raw() -> pd.DataFrame:
+    # pick the most-recent parquet dropped by ingest
+    parquet_files = sorted(RAW_DATA_DIR.glob("*.parquet"))
+    if not parquet_files:
+        raise FileNotFoundError(
+            f"No Parquet files found in {RAW_DATA_DIR.resolve()}. "
+            "Did the ingest step run and/or did you download its artifact?"
+        )
+    latest = max(parquet_files, key=lambda p: p.stat().st_mtime)
+    print(f"🔍  Using raw file → {latest.name}")
+    return pd.read_parquet(latest)
+
+
+def build_features(df: pd.DataFrame) -> pd.DataFrame:
+    today = date.today().year
+
+    df["age"] = today - pd.to_datetime(df["date_of_creation"], errors="coerce").dt.year
+    df["industry_code"] = (
+        df["sic_codes"]
+        .apply(lambda xs: xs[0] if isinstance(xs, list) and xs else None)
+        .str[:5]
+        .fillna("00000")
+    )
+    df["location"] = df["registered_office_address.locality"].fillna("")
+
+    # keep only active cos > 5 yrs old, sort A-Z
+    df = (
+        df.query("age > 5 and company_status == 'active'")
+        .sort_values("company_name")
+        .reset_index(drop=True)
+    )
+    return df
+
+
+def main() -> None:
+    feat = build_features(load_latest_raw())
+    out = FEATURE_DIR / "features.parquet"
+    feat.to_parquet(out, index=False)
+    print(f"✅  Features saved → {out}   ({len(feat):,} rows)")
+
+
+if __name__ == "__main__":
+    main()

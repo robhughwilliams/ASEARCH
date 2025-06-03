@@ -19,6 +19,12 @@ jobs:
 
       - run: pip install pandas pyarrow duckdb
 
+      - name: Download raw parquet
+        uses: actions/download-artifact@v4
+        with:
+          name: raw_companies          # ←  must match the name used in ingest.yml
+          path: data/raw               # ←  exactly where feature_build.py expects it
+
       - name: Build feature dataset
         run: python src/feature_build.py
 
