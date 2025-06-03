@@ -30,6 +30,7 @@ jobs:
         with:
           name: raw_companies
           path: data/raw
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Build feature dataset
         run: python src/feature_build.py
