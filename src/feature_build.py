@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 """
-feature_build.py
-
 Loads the most recent Parquet file produced by ch_ingest.py,
 derives a few simple features, and writes them back out to
 data/features/features.parquet  (Parquet, one row per company).
@@ -12,14 +10,11 @@ Features right now:
     • incorporation_date  (ISO string)
     • age_years           (integer)
 """
-import os
-import glob
 import datetime
 import pandas as pd
-import duckdb
 from pathlib import Path
 
-RAW_DIR     = Path("data/raw")
+RAW_DIR = Path("data/raw")
 FEATURE_DIR = Path("data/features")
 FEATURE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -36,13 +31,13 @@ def build_features(raw_path: Path) -> pd.DataFrame:
 
     # guard for API shape changes
     required = {"company_number", "title", "date_of_creation"}
-    missing  = required - set(df.columns)
+    missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Raw frame missing columns: {missing}")
 
     df_feat = pd.DataFrame({
         "company_number": df["company_number"],
-        "company_name":   df["title"],
+        "company_name": df["title"],
         "incorporation_date": df["date_of_creation"],
     })
     today = datetime.date.today()
