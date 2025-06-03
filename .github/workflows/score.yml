@@ -2,6 +2,8 @@ name: Score & push to Notion
 on:
   schedule:
     - cron: '0 1 * * *'
+  workflow_dispatch:  # Add this to enable manual triggers
+
 jobs:
   score:
     runs-on: ubuntu-latest
