@@ -29,20 +29,36 @@ def latest_raw_file() -> Path:
 def build_features(raw_path: Path) -> pd.DataFrame:
     df = pd.read_parquet(raw_path)
 
-    # guard for API shape changes
-    required = {"company_number", "title", "date_of_creation"}
-    missing = required - set(df.columns)
+    # Update column mapping to match current API response
+    column_mapping = {
+        'company_number': 'company_number',
+        'company_name': 'title',  # API might use 'company_name' instead of 'title'
+        'date_of_creation': 'date_of_creation'
+    }
+
+    # Check available columns
+    available_columns = set(df.columns)
+    required_columns = set(column_mapping.values())
+    missing = required_columns - available_columns
+
     if missing:
-        raise ValueError(f"Raw frame missing columns: {missing}")
+        # Try alternate column names
+        if 'company_name' in available_columns and 'title' in missing:
+            column_mapping['company_name'] = 'company_name'
+            missing.remove('title')
+        
+        if missing:
+            raise ValueError(f"Raw frame missing columns: {missing}")
 
     df_feat = pd.DataFrame({
-        "company_number": df["company_number"],
-        "company_name": df["title"],
-        "incorporation_date": df["date_of_creation"],
+        'company_number': df[column_mapping['company_number']],
+        'company_name': df[column_mapping['company_name']],
+        'incorporation_date': df[column_mapping['date_of_creation']],
     })
+
     today = datetime.date.today()
-    df_feat["age_years"] = (
-        pd.to_datetime(df_feat["incorporation_date"]).dt.date
+    df_feat['age_years'] = (
+        pd.to_datetime(df_feat['incorporation_date']).dt.date
         .apply(lambda d: (today - d).days // 365)
     )
 
