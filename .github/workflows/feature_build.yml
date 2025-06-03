@@ -1,29 +1,35 @@
+# .github/workflows/feature_build.yml
 name: Feature build
+
 on:
-  workflow_dispatch: {}        # run by hand
-  workflow_run:                # auto-trigger after ingest succeeds
-    workflows: ["Nightly CH ingest"]
+  workflow_run:
+    workflows: ["Nightly CH ingest"]  # ← This must match the Name: in ingest.yml exactly
     types: [completed]
+  workflow_dispatch: {}               # ← Optional: allows manual runs if you uncomment
+
 jobs:
   build_features:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
 
-      - run: pip install pandas pyarrow duckdb
+      - name: Install dependencies
+        run: pip install pandas pyarrow duckdb
 
       - name: Download raw parquet
         uses: actions/download-artifact@v4
         with:
-          name: raw_companies          # ←  must match the name used in ingest.yml
-          path: data/raw               # ←  exactly where feature_build.py expects it
+          name: raw_companies
+          path: data/raw
 
       - name: Build feature dataset
         run: python src/feature_build.py
