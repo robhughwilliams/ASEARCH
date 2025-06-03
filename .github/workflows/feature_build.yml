@@ -29,9 +29,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: raw_companies
-          workflow: "Nightly CH ingest"     # look for the latest successful run of this workflow
+          run-id: ${{ github.event.workflow_run.id }}
           path: data/raw
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build feature dataset
         run: python src/feature_build.py
