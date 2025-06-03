@@ -11,7 +11,7 @@ load_dotenv()  # picks up CH_API_KEY from a local .env when running outside CI
 
 
 def main(days, out):
-    """
+
     Fetch up to 600 *active* UK companies that are at least five years old.
 
     Companies House advanced-search filters we apply:
@@ -22,7 +22,7 @@ def main(days, out):
     The raw JSON gets normalised and saved to:
         <out>/companies_active_5y_<YYYY-MM-DD>.parquet
     where the date is the five-years-ago cutoff.
-    """
+
     today          = datetime.date.today()
     five_years_ago = (today - datetime.timedelta(days=5 * 365)).isoformat()
 
