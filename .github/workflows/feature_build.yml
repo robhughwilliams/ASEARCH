@@ -11,6 +11,9 @@ jobs:
   build_features:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    permissions:
+      actions: read        # ←–– give the token access to artifacts from other runs
+      contents: read
 
     steps:
       - name: Check out repository
