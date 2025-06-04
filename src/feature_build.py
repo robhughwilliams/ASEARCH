@@ -1,5 +1,6 @@
+#!/usr/bin/env python
 """
-Build feature set from Companies House raw parquet output.
+Build and maintain a master feature table from daily raw Parquet outputs.
 """
 
 from __future__ import annotations
@@ -9,86 +10,98 @@ import pandas as pd
 import glob
 import os
 
-# Try multiple possible locations for raw data
-POSSIBLE_RAW_DIRS = [
-    Path("data/raw"),
-    Path("."),  # Current directory (where artifact might be downloaded)
-    Path("raw_companies"),  # Direct artifact name
-]
-
+# Directories
+RAW_DIR = Path("data/raw")
 FEATURE_DIR = Path("data/features")
 FEATURE_DIR.mkdir(parents=True, exist_ok=True)
 
-
-def load_latest_raw() -> pd.DataFrame:
-    """Find and load the most recent parquet file from possible locations."""
-    all_parquet_files = []
-    
-    # Search all possible directories
-    for raw_dir in POSSIBLE_RAW_DIRS:
-        if raw_dir.exists():
-            parquet_files = list(raw_dir.glob("*.parquet"))
-            all_parquet_files.extend(parquet_files)
-            print(f"🔍  Found {len(parquet_files)} parquet files in {raw_dir}")
-    
-    # Also search current directory and subdirectories
-    current_dir_files = glob.glob("**/*.parquet", recursive=True)
-    for file_path in current_dir_files:
-        all_parquet_files.append(Path(file_path))
-    
-    if not all_parquet_files:
-        # Print debug info
-        print("❌ No Parquet files found. Debug info:")
-        print(f"Current working directory: {os.getcwd()}")
-        print("Directory contents:")
-        for item in Path(".").iterdir():
-            print(f"  {item}")
-        
-        # Check if data/raw exists
-        data_raw = Path("data/raw")
-        if data_raw.exists():
-            print(f"Contents of data/raw:")
-            for item in data_raw.iterdir():
-                print(f"  {item}")
-        
-        raise FileNotFoundError(
-            f"No Parquet files found in any of: {[str(d) for d in POSSIBLE_RAW_DIRS]} "
-            "or current directory tree. Did the ingest step run and/or did you download its artifact?"
-        )
-    
-    # Remove duplicates and find the most recent
-    unique_files = list(set(all_parquet_files))
-    latest = max(unique_files, key=lambda p: p.stat().st_mtime)
-    print(f"🔍  Using raw file → {latest}")
-    return pd.read_parquet(latest)
+# Master feature log path
+ALL_FEATURES = FEATURE_DIR / "all_features.parquet"
 
 
-def build_features(df: pd.DataFrame) -> pd.DataFrame:
-    today = date.today().year
+def find_latest_raw() -> Path:
+    """Return the most recently modified Parquet under data/raw/."""
+    files = RAW_DIR.glob("companies_active_5y_*.parquet")
+    candidates = list(files)
+    if not candidates:
+        raise FileNotFoundError(f"No raw files in {RAW_DIR.resolve()}")
+    latest = max(candidates, key=lambda p: p.stat().st_mtime)
+    print(f"🔍  Latest raw file: {latest.name}")
+    return latest
 
-    df["age"] = today - pd.to_datetime(df["date_of_creation"], errors="coerce").dt.year
+
+def build_features_for_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Given a raw-companies DataFrame, derive all desired features."""
+    today_year = date.today().year
+
+    # Compute age in whole years
+    df["age"] = today_year - pd.to_datetime(df["date_of_creation"], errors="coerce").dt.year
+
+    # First SIC‐code as 5-digit string
     df["industry_code"] = (
         df["sic_codes"]
         .apply(lambda xs: xs[0] if isinstance(xs, list) and xs else None)
         .str[:5]
         .fillna("00000")
     )
+
+    # Location from registered office’s locality (or "")
     df["location"] = df["registered_office_address.locality"].fillna("")
 
-    # keep only active cos > 5 yrs old, sort A-Z
-    df = (
-        df.query("age > 5 and company_status == 'active'")
-        .sort_values("company_name")
-        .reset_index(drop=True)
-    )
-    return df
+    # Keep only active, age > 5 (though ingest already guaranteed that)
+    df = df.query("age > 5 and company_status == 'active'")
+
+    # Sort alphabetically by company_name
+    df = df.sort_values("company_name").reset_index(drop=True)
+
+    # Select and rename columns
+    features = df[[
+        "company_number",
+        "company_name",
+        "company_status",
+        "company_type",
+        "company_subtype",
+        "date_of_creation",
+        "age",
+        "industry_code",
+        "location"
+    ]].copy()
+    return features
 
 
 def main() -> None:
-    feat = build_features(load_latest_raw())
-    out = FEATURE_DIR / "features.parquet"
-    feat.to_parquet(out, index=False)
-    print(f"✅  Features saved → {out}   ({len(feat):,} rows)")
+    # 1) Load latest raw
+    raw_path = find_latest_raw()
+    df_raw = pd.read_parquet(raw_path)
+
+    # 2) Build features for the new batch
+    df_new = build_features_for_df(df_raw)
+    if df_new.empty:
+        print("No features to add (empty after filtering).")
+        return
+
+    # 3) Write today’s features file (optional debug copy)
+    date_suffix = Path(raw_path).stem.split("_")[-1]
+    debug_path = FEATURE_DIR / f"features_{date_suffix}.parquet"
+    df_new.to_parquet(debug_path, index=False)
+    print(f"✅  Wrote today’s features → {debug_path.name} ({len(df_new)} rows)")
+
+    # 4) Load or create master feature log, append new rows, drop duplicates
+    if ALL_FEATURES.exists():
+        df_master = pd.read_parquet(ALL_FEATURES)
+        df_combined = pd.concat([df_master, df_new], ignore_index=True)
+        df_combined = df_combined.drop_duplicates(subset="company_number")
+        print(f"📦  Merged with master log: {len(df_master)} + {len(df_new)} → {len(df_combined)} unique rows")
+    else:
+        df_combined = df_new
+        print(f"📦  Created new master feature log with {len(df_new)} rows")
+
+    # 5) Save back the master log
+    df_combined.to_parquet(ALL_FEATURES, index=False)
+    print(f"✅  Saved master feature log → {ALL_FEATURES.name}")
+
+    # Done
+    print("Feature build complete.")
 
 
 if __name__ == "__main__":
