@@ -15,6 +15,13 @@ notion = Client(auth=NOTION_TOKEN)
 # Load the features DataFrame
 df = pd.read_parquet('data/features/features.parquet')
 
+# Debug: Print column names to verify what we have
+print("Available columns in features DataFrame:")
+print(df.columns.tolist())
+print(f"DataFrame shape: {df.shape}")
+print("\nFirst few rows:")
+print(df.head())
+
 # Sort companies alphabetically by name and select the top 20
 df_sorted = df.sort_values('company_name', ascending=True, na_position='last')
 top20 = df_sorted.head(20)
@@ -26,9 +33,15 @@ if top20.empty:
 for _, row in top20.iterrows():
     name = str(row['company_name']) if pd.notna(row['company_name']) else ""
     company_no = str(row['company_number']) if pd.notna(row['company_number']) else ""
-    age = int(row['age_years']) if pd.notna(row['age_years']) else None
-    industry = str(row['industry']) if pd.notna(row['industry']) else ""
+    
+    # Use 'age' instead of 'age_years' to match feature_build.py output
+    age = int(row['age']) if pd.notna(row['age']) else None
+    
+    # Use 'industry_code' instead of 'industry' to match feature_build.py output
+    industry = str(row['industry_code']) if pd.notna(row['industry_code']) else ""
+    
     location = str(row['location']) if pd.notna(row['location']) else ""
+    
     # Prepare Notion page properties
     properties = {
         "Name": {"title": [{"text": {"content": name}}]},
@@ -38,6 +51,7 @@ for _, row in top20.iterrows():
         "Industry": {"rich_text": [{"text": {"content": industry}}]},
         "Location": {"rich_text": [{"text": {"content": location}}]}
     }
+    
     try:
         print(f"Pushing to Notion: {name} (Company {company_no})...")
         notion.pages.create(parent={"database_id": NOTION_DB_ID}, properties=properties)
