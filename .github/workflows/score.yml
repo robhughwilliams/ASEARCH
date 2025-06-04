@@ -4,12 +4,13 @@ on:
   workflow_run:                 # auto-trigger after feature build
     workflows: ["Feature build"]
     types: [completed]
+
 jobs:
   score_and_push:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
-      actions: read        # ←–– give the token access to artifacts from other runs
+      actions: read
       contents: read
 
     steps:
@@ -22,10 +23,12 @@ jobs:
 
       - run: pip install pandas pyarrow notion-client
 
-      - name: Download feature artifact
-        uses: actions/download-artifact@v4
+      # Use dawidd6/action-download-artifact for cross-workflow artifact access
+      - name: Download feature artifact from previous workflow
+        uses: dawidd6/action-download-artifact@v6
         with:
           name: features
+          workflow: feature_build.yml
           path: data/features
 
       - name: Push top companies to Notion

@@ -3,16 +3,16 @@ name: Feature build
 
 on:
   workflow_run:
-    workflows: ["Nightly CH ingest"]  # ← This must match the Name: in ingest.yml exactly
+    workflows: ["Nightly CH ingest"]
     types: [completed]
-  workflow_dispatch: {}               # ← Optional: allows manual runs if you uncomment
+  workflow_dispatch: {}
 
 jobs:
   build_features:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
-      actions: read        # ←–– give the token access to artifacts from other runs
+      actions: read
       contents: read
 
     steps:
@@ -28,36 +28,22 @@ jobs:
       - name: Install dependencies
         run: pip install pandas pyarrow duckdb
 
-      # Add debugging step
-      - name: Debug workflow run info
-        run: |
-          echo "Workflow run ID: ${{ github.event.workflow_run.id }}"
-          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
-          echo "Workflow run status: ${{ github.event.workflow_run.status }}"
-
-      # Add step to list available artifacts
-      - name: List available artifacts
-        run: |
-          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Accept: application/vnd.github.v3+json" \
-               "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/artifacts"
-
-      - name: Download raw parquet
-        uses: actions/download-artifact@v4
+      # Use dawidd6/action-download-artifact for cross-workflow artifact access
+      - name: Download raw parquet from previous workflow
+        uses: dawidd6/action-download-artifact@v6
         with:
           name: raw_companies
-          run-id: ${{ github.event.workflow_run.id }}
-          path: ./
+          workflow: ingest.yml
+          path: data/raw
 
-      # Add debugging step to check downloaded files
-      - name: Check downloaded files
+      - name: Debug downloaded files
         run: |
-          echo "Contents of current directory:"
-          ls -la
-          echo "Contents of data/raw (if exists):"
-          ls -la data/raw/ || echo "data/raw directory doesn't exist"
+          echo "Contents of data/raw:"
+          ls -la data/raw/ || echo "data/raw doesn't exist"
           echo "All parquet files:"
           find . -name "*.parquet"
+          echo "Current directory:"
+          ls -la
 
       - name: Build feature dataset
         run: python src/feature_build.py
