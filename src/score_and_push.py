@@ -16,7 +16,7 @@ if not NOTION_TOKEN or not NOTION_DB_ID:
 notion = Client(auth=NOTION_TOKEN)
 
 # Load the features DataFrame
-df = pd.read_parquet('data/features/features.parquet')
+df = pd.read_parquet('data/features/all_features.parquet')
 
 # Debug: Print column names to verify what we have
 print("Available columns in features DataFrame:")

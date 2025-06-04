@@ -52,5 +52,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: features
-          path: data/features/features.parquet
+          path: data/features/all_features.parquet
           retention-days: 7
