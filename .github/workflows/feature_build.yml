@@ -28,12 +28,36 @@ jobs:
       - name: Install dependencies
         run: pip install pandas pyarrow duckdb
 
+      # Add debugging step
+      - name: Debug workflow run info
+        run: |
+          echo "Workflow run ID: ${{ github.event.workflow_run.id }}"
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Workflow run status: ${{ github.event.workflow_run.status }}"
+
+      # Add step to list available artifacts
+      - name: List available artifacts
+        run: |
+          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+               -H "Accept: application/vnd.github.v3+json" \
+               "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/artifacts"
+
       - name: Download raw parquet
         uses: actions/download-artifact@v4
         with:
           name: raw_companies
           run-id: ${{ github.event.workflow_run.id }}
-          path: data/raw
+          path: ./
+
+      # Add debugging step to check downloaded files
+      - name: Check downloaded files
+        run: |
+          echo "Contents of current directory:"
+          ls -la
+          echo "Contents of data/raw (if exists):"
+          ls -la data/raw/ || echo "data/raw directory doesn't exist"
+          echo "All parquet files:"
+          find . -name "*.parquet"
 
       - name: Build feature dataset
         run: python src/feature_build.py
