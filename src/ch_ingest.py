@@ -100,7 +100,7 @@ def main(days, out):
 
     df = pd.json_normalize(items)
     os.makedirs(out, exist_ok=True)
-    out_path = f"{out}/companies_active_5y_{five_years_ago.isoformat()}.parquet"
+    out_path = f"{out}/companies_active_5y_{five_years_ago.strftime('%Y-%m-%d')}.parquet"
     df.to_parquet(out_path)
     print(f"Wrote {len(df)} rows to {out_path}")
 

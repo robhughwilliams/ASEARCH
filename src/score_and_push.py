@@ -3,6 +3,9 @@ import sys
 import pandas as pd
 from notion_client import Client
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Load Notion API credentials from environment
 NOTION_TOKEN = os.getenv('NOTION_TOKEN')
 NOTION_DB_ID = os.getenv('NOTION_DB_ID')
@@ -34,8 +37,8 @@ for _, row in top20.iterrows():
     name = str(row['company_name']) if pd.notna(row['company_name']) else ""
     company_no = str(row['company_number']) if pd.notna(row['company_number']) else ""
     
-    # Use 'age' instead of 'age_years' to match feature_build.py output
-    age = int(row['age']) if pd.notna(row['age']) else None
+    # Use 'age' instead of 'age_years' to match feature_build.py output, with defensive check for column existence
+    age = int(row['age']) if 'age' in row and pd.notna(row['age']) else None
     
     # Use 'industry_code' instead of 'industry' to match feature_build.py output
     industry = str(row['industry_code']) if pd.notna(row['industry_code']) else ""
@@ -47,7 +50,7 @@ for _, row in top20.iterrows():
         "Name": {"title": [{"text": {"content": name}}]},
         "Company": {"rich_text": [{"text": {"content": company_no}}]},
         "Age": {"number": age},
-        "Status": {"select": {"name": "Gold"}},
+        "Status": {"status": {"name": "Gold"}},
         "Industry": {"rich_text": [{"text": {"content": industry}}]},
         "Location": {"rich_text": [{"text": {"content": location}}]}
     }
