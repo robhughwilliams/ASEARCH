@@ -3,8 +3,8 @@ import sys
 import pandas as pd
 from notion_client import Client
 
-from dotenv import load_dotenv
-load_dotenv()
+#from dotenv import load_dotenv
+#load_dotenv()
 
 # Load Notion API credentials from environment
 NOTION_TOKEN = os.getenv('NOTION_TOKEN')
