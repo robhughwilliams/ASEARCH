@@ -84,7 +84,7 @@ No arguments.
 | Function | Signature | Behaviour |
 |---|---|---|
 | `find_latest_raw` | `() -> Path` | Returns the `data/raw/companies_active_5y_*.parquet` file with the newest **modification time**. Raises `FileNotFoundError` if there are none. |
-| `build_features_for_df` | `(df: pd.DataFrame) -> pd.DataFrame` | Derives features (below), keeps rows where `age > 5 and company_status == 'active'`, sorts by `company_name`. Raises `KeyError` if any selected column, including `company_subtype`, is missing from the raw batch. |
+| `build_features_for_df` | `(df: pd.DataFrame) -> pd.DataFrame` | Derives features (below), keeps rows where `age > 5 and company_status == 'active'`, sorts by `company_name`. Adds an empty `company_subtype` column when the batch has none. Raises `KeyError` if any other required column is missing. |
 | `main` | `() -> None` | Runs the steps below. |
 
 ### Feature columns
@@ -95,10 +95,10 @@ No arguments.
 | `company_name` | str | Copied. |
 | `company_status` | str | Copied. |
 | `company_type` | str | Copied (for example `ltd`). |
-| `company_subtype` | str or null | Copied. |
+| `company_subtype` | str or null | Copied, or null for every row when the API returned no subtypes in that batch. |
 | `date_of_creation` | str `YYYY-MM-DD` | Copied. |
 | `age` | int | `current calendar year - year(date_of_creation)`. A year difference, not exact days, so a company incorporated in 2021 has `age` 5 in 2026 and is dropped by the `age > 5` filter. |
-| `industry_code` | str, 5 chars | First SIC code, truncated to 5 characters, or `"00000"`. See [known issues](explanation.md#known-issues): this is currently always `"00000"`. |
+| `industry_code` | str, up to 5 chars | First entry of `sic_codes` (a list from the API, a numpy array after reading Parquet), truncated to 5 characters. Older 4-digit codes such as `7487` stay 4 characters. `"00000"` when the company has no SIC code. |
 | `location` | str | `registered_office_address.locality`, or `""`. |
 
 ### Outputs
@@ -106,7 +106,7 @@ No arguments.
 | File | Contents |
 |---|---|
 | `data/features/features_<cutoff>.parquet` | This batch's features only (a debug copy). `<cutoff>` comes from the raw filename. |
-| `data/features/all_features.parquet` | Master table: previous master + this batch, de-duplicated on `company_number`. The existing row wins, so a company's `age` is never refreshed once stored. |
+| `data/features/all_features.parquet` | Master table: previous master + this batch, de-duplicated on `company_number`. The existing row wins, so a stored company's `age` and `industry_code` are never refreshed. |
 
 If the batch is empty after filtering, it prints `No features to add (empty after filtering).` and writes nothing.
 
@@ -154,6 +154,12 @@ Details that matter:
 - `data/` is git-ignored, so the seen log and master feature table are **not** carried between CI runs. See [explanation](explanation.md#ci-has-no-memory).
 
 ## Tests
+
+`tests/test_feature_build.py` checks `build_features_for_df` on a small in-memory DataFrame: SIC codes given as numpy arrays, a company with no SIC code, and a batch with no `company_subtype` column. It needs no network and no files. Run it with:
+
+```bash
+python tests/test_feature_build.py
+```
 
 `tests/test_workflow.py` has two smoke tests that shell out to the scripts and assert exit code 0:
 

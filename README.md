@@ -56,8 +56,10 @@ The [tutorial](docs/tutorial-first-run.md) walks through each step, including th
 
 ## Known issues
 
-- `industry_code` is always `00000`.
-- Feature build crashes when a batch has no `company_subtype`.
 - In CI nothing persists between runs, so the same companies can be pushed to Notion repeatedly.
+- `Feature build` and `Score & push to Notion` are skipped when started by hand. Start from `Nightly CH ingest`.
+- Failed Notion pushes don't fail the job.
+
+Run the offline feature-build check with `python tests/test_feature_build.py`.
 
 Details and causes: [Explanation: known issues](docs/explanation.md#known-issues).

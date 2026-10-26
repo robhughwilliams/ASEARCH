@@ -77,23 +77,13 @@ Feature build complete.
 
 The row count can be lower than 600: companies incorporated exactly five calendar years ago get `age` 5 and are filtered out by `age > 5`.
 
-**If it fails with `KeyError: "['company_subtype'] not in index"`**, no company in your batch had a subtype, and the feature builder expects the column. This is a [known issue](explanation.md#known-issues). Add the empty column to the raw file and re-run:
-
-```bash
-python -c "import pandas as pd, glob; f=max(glob.glob('data/raw/*.parquet'), key=__import__('os').path.getmtime); df=pd.read_parquet(f); df['company_subtype']=df.get('company_subtype'); df.to_parquet(f, index=False)"
-```
-
-```bash
-python src/feature_build.py
-```
-
 Take a look at the result:
 
 ```bash
 python -c "import pandas as pd; print(pd.read_parquet('data/features/all_features.parquet').head())"
 ```
 
-You'll see `company_number`, `company_name`, `age`, `industry_code`, `location` and a few more. `industry_code` will read `00000` for every row; that is the other [known issue](explanation.md#known-issues).
+You'll see `company_number`, `company_name`, `age`, `industry_code`, `location` and a few more. `industry_code` is the company's first SIC code, or `00000` when Companies House has none on record. Expect plenty of `00000`: in the batches seen so far, half or more of the companies had no SIC code.
 
 ## Step 5: Push 20 companies to Notion
 

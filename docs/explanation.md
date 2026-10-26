@@ -57,12 +57,17 @@ So the scheduled pipeline can create duplicate Notion pages. Fixing this needs s
 
 These come from reading the code and running it against the local data in `data/`, checked 2026-10-26.
 
-1. **`industry_code` is always `00000`.** `build_features_for_df` only takes the first SIC code when `sic_codes` is a Python `list`. After a round trip through Parquet, pandas returns it as a `numpy.ndarray`, so the check fails for every row. All 580 rows in the local `all_features.parquet` have `00000`, while 306 of 600 rows in `companies_active_5y_2020-06-04.parquet` have real SIC codes.
-2. **Feature build crashes when a batch has no `company_subtype`.** `json_normalize` only creates columns that appear in the API response. If no company in the batch has a subtype, the column selection raises `KeyError: "['company_subtype'] not in index"`. The local file `companies_active_5y_2020-06-05.parquet` triggers this, and because it is the newest by modification time, `python src/feature_build.py` currently fails on this machine.
-3. **Manual runs of the downstream workflows are skipped.** `feature_build.yml` and `score.yml` only run when `github.event.workflow_run.conclusion == 'success'`, which is never true for `workflow_dispatch`.
-4. **`--out` and `--days` do nothing** in `ch_ingest.py`. Output always goes to `data/raw/`.
-5. **Raw file names carry the cutoff date, not the run date.** A file named `..._2020-06-05.parquet` was produced on 2025-06-04.
-6. **Notion errors don't fail the job.** Failed pages go to stderr, but `score_and_push.py` still exits 0, so the workflow shows green.
+1. **Manual runs of the downstream workflows are skipped.** `feature_build.yml` and `score.yml` only run when `github.event.workflow_run.conclusion == 'success'`, which is never true for `workflow_dispatch`.
+2. **`--out` and `--days` do nothing** in `ch_ingest.py`. Output always goes to `data/raw/`.
+3. **Raw file names carry the cutoff date, not the run date.** A file named `..._2020-06-05.parquet` was produced on 2025-06-04.
+4. **Notion errors don't fail the job.** Failed pages go to stderr, but `score_and_push.py` still exits 0, so the workflow shows green.
+
+### Fixed
+
+- **`industry_code` was always `00000`** (fixed 2026-10-26). Pandas reads list columns back from Parquet as `numpy.ndarray`, and the code only accepted a Python `list`. It now accepts both. A local `all_features.parquet` built before the fix still holds `00000` for those companies, because the merge keeps the stored row. To rebuild it, delete `data/features/all_features.parquet` and re-run `python src/feature_build.py` once per raw file, touching each file first (`touch data/raw/<file>`) so it becomes the newest. CI rebuilds from scratch every night, so it needs nothing.
+- **Feature build crashed when a batch had no `company_subtype`** (fixed 2026-10-26). `json_normalize` only creates columns that appear in the API response, so the column was missing and selection raised `KeyError`. `build_features_for_df` now adds an empty column first.
+
+`tests/test_feature_build.py` covers both.
 
 ## Alternatives considered
 

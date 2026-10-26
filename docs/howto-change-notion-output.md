@@ -39,7 +39,13 @@ Only companies registered in London, oldest first:
 df_sorted = df[df['location'] == 'London'].sort_values('age', ascending=False)
 ```
 
-Don't filter on `industry_code` yet. It is `00000` for every row until the [SIC code bug](explanation.md#known-issues) is fixed.
+Only IT services companies (SIC codes starting `62`), skipping companies with no SIC code:
+
+```python
+df_sorted = df[df['industry_code'].str.startswith('62')].sort_values('company_name')
+```
+
+If your local `all_features.parquet` was built before 2026-10-26, its rows hold `00000` for every company. [Rebuild it](explanation.md#fixed) before filtering on `industry_code`.
 
 ## Add or change a Notion property
 

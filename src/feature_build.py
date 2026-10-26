@@ -6,9 +6,8 @@ Build and maintain a master feature table from daily raw Parquet outputs.
 from __future__ import annotations
 from datetime import date
 from pathlib import Path
+import numpy as np
 import pandas as pd
-import glob
-import os
 
 # Directories
 RAW_DIR = Path("data/raw")
@@ -17,7 +16,6 @@ FEATURE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Master feature log path
 ALL_FEATURES = FEATURE_DIR / "all_features.parquet"
-
 
 def find_latest_raw() -> Path:
     """Return the most recently modified Parquet under data/raw/."""
@@ -37,13 +35,18 @@ def build_features_for_df(df: pd.DataFrame) -> pd.DataFrame:
     # Compute age in whole years
     df["age"] = today_year - pd.to_datetime(df["date_of_creation"], errors="coerce").dt.year
 
-    # First SIC‐code as 5-digit string
+    # First SIC‐code as 5-digit string.
+    # Parquet round-trips list columns as numpy arrays, so accept both.
     df["industry_code"] = (
         df["sic_codes"]
-        .apply(lambda xs: xs[0] if isinstance(xs, list) and xs else None)
+        .apply(lambda xs: xs[0] if isinstance(xs, (list, np.ndarray)) and len(xs) else None)
         .str[:5]
         .fillna("00000")
     )
+
+    # The API omits company_subtype entirely when no company in the batch has one
+    if "company_subtype" not in df:
+        df["company_subtype"] = None
 
     # Location from registered office’s locality (or "")
     df["location"] = df["registered_office_address.locality"].fillna("")

@@ -67,7 +67,6 @@ gh run view --log
 | `Feature build` or `Score & push to Notion` shows **skipped** | It was started with `workflow_dispatch`, or the upstream run failed. | Start from `gh workflow run ingest.yml`. If upstream failed, fix that first. |
 | Downstream workflow never starts | The `workflows:` name in `feature_build.yml` / `score.yml` no longer matches the upstream `name:`, or the files aren't on `main`. | Keep `name: Nightly CH ingest` and `name: Feature build` in sync with the `workflow_run.workflows` lists. Merge to `main`. |
 | Ingest fails with `HTTPError: 401` | `CH_API_KEY` secret missing or wrong. | `gh secret set CH_API_KEY` again. |
-| Feature build fails with `KeyError: "['company_subtype'] not in index"` | No company in that night's batch had a subtype. [Known issue](explanation.md#known-issues). | Re-run ingest, or patch `build_features_for_df` to add the column when missing. |
 | Feature build fails with `FileNotFoundError: No raw files` | The `raw_companies` artifact was not found (expired after 7 days, or ingest uploaded nothing because it found no new companies). | Re-run `ingest.yml`. |
 | Score job is green but Notion has no new pages | Notion errors are logged to stderr without failing the job. | Search the run log for `Failed to push`. Usually the integration isn't connected to the database, or a property name doesn't match. |
 | Score fails with `EnvironmentError: NOTION_TOKEN or NOTION_DB_ID is not set` | Secret missing. | `gh secret set` the missing one. |
